@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Spider-Sense Scanner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --red:#e21027;
+    --cyan:#2fd8ff;
+    --text:#e9eaee;
+    --muted:#83858c;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none;}
+  html,body{
+    height:100%;
+    margin:0;
+    background:#000;
+    overflow:hidden;
+    font-family:'Rajdhani', sans-serif;
+    color:var(--text);
+  }
+  #stage{
+    position:fixed;
+    inset:0;
+  }
+  video{
+    position:absolute;
+    inset:0;
+    width:100%;
+    height:100%;
+    object-fit:cover;
+    filter:contrast(1.1) saturate(0.85);
+  }
+  canvas{
+    position:absolute;
+    inset:0;
+    width:100%;
+    height:100%;
+  }
+
+  #startScreen{
+    position:fixed;
+    inset:0;
+    z-index:20;
+    background:#050505;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    text-align:center;
+    padding:30px;
+    gap:18px;
+  }
+  #startScreen.hidden{display:none;}
+  .glyph{
+    width:70px;height:70px;
+    border:2px solid var(--red);
+    border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    position:relative;
+  }
+  .glyph::before{
+    content:"";
+    position:absolute;
+    inset:9px;
+    border:1px solid var(--cyan);
+    border-radius:50%;
+    opacity:0.6;
+  }
+  .glyph span{
+    font-family:'Orbitron', sans-serif;
+    font-weight:900;
+    font-size:22px;
+    color:var(--cyan);
+  }
+  h1{
+    font-family:'Orbitron', sans-serif;
+    letter-spacing:4px;
+    font-size:20px;
+    margin:0;
+  }
+  p.desc{
+    color:var(--muted);
+    font-size:14px;
+    max-width:280px;
+    line-height:1.5;
+    margin:0;
+  }
+  #enableBtn{
+    margin-top:8px;
+    padding:13px 34px;
+    background:var(--red);
+    border:none;
+    border-radius:3px;
+    color:#fff;
+    font-family:'Orbitron', sans-serif;
+    font-size:13px;
+    letter-spacing:2px;
+    cursor:pointer;
+  }
+  #errorMsg{
+    color:var(--red);
+    font-size:12.5px;
+    letter-spacing:1px;
+    max-width:280px;
+    display:none;
+  }
+
+  #hud{
+    position:fixed;
+    inset:0;
+    z-index:10;
+    pointer-events:none;
+  }
+  .corner-bracket{
+    position:absolute;
+    width:34px;height:34px;
+    border:2px solid var(--cyan);
+    opacity:0.85;
+  }
+  .cb-tl{top:18px; left:18px; border-right:none; border-bottom:none;}
+  .cb-tr{top:18px; right:18px; border-left:none; border-bottom:none;}
+  .cb-bl{bottom:18px; left:18px; border-right:none; border-top:none;}
+  .cb-br{bottom:18px; right:18px; border-left:none; border-top:none;}
+
+  #topStatus{
+    position:absolute;
+    top:26px; left:64px; right:64px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    font-family:'Orbitron', sans-serif;
+    font-size:10px;
+    letter-spacing:2px;
+    color:var(--cyan);
+  }
+  .dot{
+    width:7px;height:7px;border-radius:50%;
+    background:var(--cyan);
+    display:inline-block;
+    margin-right:6px;
+    box-shadow:0 0 8px var(--cyan);
+    animation:pulse 1.6s infinite ease-in-out;
+  }
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.25;}}
+
+  #readout{
+    position:absolute;
+    bottom:34px; left:64px; right:64px;
+    font-family:'Rajdhani', sans-serif;
+    font-size:13.5px;
+    letter-spacing:0.5px;
+    color:var(--text);
+    text-shadow:0 1px 3px rgba(0,0,0,0.9);
+  }
+  #readout .line{
+    opacity:0.9;
+    margin-bottom:3px;
+  }
+  #readout .line.dim{
+    color:var(--muted);
+    font-size:11.5px;
+  }
+
+  #alertFlash{
+    position:fixed;
+    inset:0;
+    z-index:15;
+    pointer-events:none;
+    background:radial-gradient(circle at 50% 50%, transparent 55%, rgba(226,16,39,0.55) 100%);
+    opacity:0;
+    transition:opacity 0.25s;
+  }
+  #alertFlash.on{opacity:1;}
+  #alertText{
+    position:absolute;
+    top:38%;
+    left:0; right:0;
+    text-align:center;
+    font-family:'Orbitron', sans-serif;
+    color:var(--red);
+    font-size:15px;
+    letter-spacing:4px;
+    text-shadow:0 0 12px rgba(226,16,39,0.8);
+    opacity:0;
+    transition:opacity 0.25s;
+  }
+  #alertText.on{opacity:1;}
+
+  .scan-card{
+    position:absolute;
+    z-index:12;
+    transform:translate(-50%, -50%);
+    background:rgba(5,8,10,0.82);
+    border:1px solid var(--cyan);
+    border-radius:2px;
+    padding:8px 12px;
+    font-family:'Orbitron', sans-serif;
+    font-size:10px;
+    letter-spacing:1.5px;
+    color:var(--cyan);
+    white-space:nowrap;
+    pointer-events:none;
+    animation:cardIn 0.25s ease-out;
+  }
+  @keyframes cardIn{from{opacity:0; transform:translate(-50%,-50%) scale(0.85);} to{opacity:1; transform:translate(-50%,-50%) scale(1);}}
+</style>
+</head>
+<body>
+
+<div id="stage">
+  <video id="video" autoplay playsinline muted></video>
+  <canvas id="canvas"></canvas>
+</div>
+
+<div id="hud">
+  <div class="corner-bracket cb-tl"></div>
+  <div class="corner-bracket cb-tr"></div>
+  <div class="corner-bracket cb-bl"></div>
+  <div class="corner-bracket cb-br"></div>
+  <div id="topStatus">
+    <span><span class="dot"></span>SPIDER-SENSE ACTIVE</span>
+    <span id="clock">00:00:00</span>
+  </div>
+  <div id="readout">
+    <div class="line" id="readoutMain">SCANNING PERIMETER...</div>
+    <div class="line dim" id="readoutSub">TAP ANYWHERE TO ANALYZE A TARGET</div>
+  </div>
+</div>
+
+<div id="alertFlash"></div>
+<div id="alertText">SPIDER-SENSE TINGLING</div>
+
+<div id="startScreen">
+  <div class="glyph"><span>SS</span></div>
+  <h1>SPIDER-SENSE SCANNER</h1>
+  <p class="desc">Enable your camera to activate perimeter scanning, threat analysis, and spider-sense alerts.</p>
+  <button id="enableBtn">ENABLE CAMERA</button>
+  <p id="errorMsg"></p>
+</div>
+
+<script>
+const video = document.getElementById('video');
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const startScreen = document.getElementById('startScreen');
+const enableBtn = document.getElementById('enableBtn');
+const errorMsg = document.getElementById('errorMsg');
+const readoutMain = document.getElementById('readoutMain');
+const readoutSub = document.getElementById('readoutSub');
+const clockEl = document.getElementById('clock');
+const alertFlash = document.getElementById('alertFlash');
+const alertText = document.getElementById('alertText');
+
+let audioCtx;
+function beep(freq = 880, dur = 0.08, vol = 0.05){
+  try{
+    if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.frequency.value = freq;
+    osc.type = 'sine';
+    gain.gain.value = vol;
+    osc.connect(gain).connect(audioCtx.destination);
+    osc.start();
+    gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + dur);
+    osc.stop(audioCtx.currentTime + dur);
+  }catch(e){}
+}
+
+function resizeCanvas(){
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resizeCanvas);
+
+const scanLines = { offset: 0 };
+function drawScanlines(){
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.save();
+  ctx.globalAlpha = 0.06;
+  ctx.strokeStyle = '#2fd8ff';
+  ctx.lineWidth = 1;
+  scanLines.offset = (scanLines.offset + 0.6) % 4;
+  for(let y = scanLines.offset; y < canvas.height; y += 4){
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(canvas.width, y);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // subtle center crosshair
+  ctx.save();
+  ctx.strokeStyle = 'rgba(47,216,255,0.35)';
+  ctx.lineWidth = 1;
+  const cx = canvas.width / 2, cy = canvas.height / 2;
+  ctx.beginPath();
+  ctx.moveTo(cx - 14, cy);
+  ctx.lineTo(cx - 4, cy);
+  ctx.moveTo(cx + 4, cy);
+  ctx.lineTo(cx + 14, cy);
+  ctx.moveTo(cx, cy - 14);
+  ctx.lineTo(cx, cy - 4);
+  ctx.moveTo(cx, cy + 4);
+  ctx.lineTo(cx, cy + 14);
+  ctx.stroke();
+  ctx.restore();
+
+  requestAnimationFrame(drawScanlines);
+}
+
+function updateClock(){
+  const now = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  clockEl.textContent = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+const flavorLines = [
+  ['SCANNING PERIMETER...', 'NO HOSTILES DETECTED'],
+  ['BIOMETRIC LOCK STABLE', 'HEART RATE: NOMINAL'],
+  ['ENVIRONMENTAL SCAN COMPLETE', 'AIR QUALITY: ACCEPTABLE'],
+  ['TRACKING MOTION VECTORS', 'ALL CLEAR'],
+  ['THREAT ASSESSMENT RUNNING', 'RISK LEVEL: LOW'],
+  ['NEURAL LINK STABLE', 'AWAITING INPUT']
+];
+function cycleReadout(){
+  const pair = flavorLines[Math.floor(Math.random() * flavorLines.length)];
+  readoutMain.textContent = pair[0];
+  readoutSub.textContent = pair[1];
+}
+setInterval(cycleReadout, 4200);
+
+function triggerSpiderSense(){
+  alertFlash.classList.add('on');
+  alertText.classList.add('on');
+  beep(1400, 0.12, 0.06);
+  if(navigator.vibrate) navigator.vibrate([80, 60, 80, 60, 160]);
+  setTimeout(() => {
+    alertFlash.classList.remove('on');
+    alertText.classList.remove('on');
+  }, 1600);
+  scheduleSpiderSense();
+}
+function scheduleSpiderSense(){
+  const delay = 14000 + Math.random() * 22000;
+  setTimeout(triggerSpiderSense, delay);
+}
+
+const targetLines = [
+  'THREAT LEVEL: LOW', 'THREAT LEVEL: MINIMAL', 'IDENTITY: UNKNOWN',
+  'NO WEAPON SIGNATURE', 'BIO-SIGNAL: NORMAL', 'STRUCTURE: STABLE',
+  'HEAT SIGNATURE NOMINAL', 'CLEARED — NO ACTION NEEDED'
+];
+function spawnScanCard(x, y){
+  const card = document.createElement('div');
+  card.className = 'scan-card';
+  card.style.left = x + 'px';
+  card.style.top = (y - 46) + 'px';
+  card.textContent = 'ANALYZING...';
+  document.body.appendChild(card);
+  beep(660, 0.05, 0.04);
+
+  setTimeout(() => {
+    card.textContent = targetLines[Math.floor(Math.random() * targetLines.length)];
+    beep(980, 0.06, 0.05);
+  }, 500);
+
+  setTimeout(() => card.remove(), 2400);
+}
+
+function drawTargetRing(x, y){
+  let r = 60;
+  const anim = () => {
+    ctx.save();
+    ctx.strokeStyle = 'rgba(226,16,39,0.9)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+    r -= 4;
+    if(r > 18) requestAnimationFrame(anim);
+  };
+  anim();
+}
+
+window.addEventListener('pointerdown', (e) => {
+  if(startScreen && !startScreen.classList.contains('hidden')) return;
+  const x = e.clientX, y = e.clientY;
+  drawTargetRing(x, y);
+  spawnScanCard(x, y);
+});
+
+enableBtn.addEventListener('click', async () => {
+  errorMsg.style.display = 'none';
+  try{
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment' },
+      audio: false
+    });
+    video.srcObject = stream;
+    await video.play();
+    resizeCanvas();
+    drawScanlines();
+    scheduleSpiderSense();
+    startScreen.classList.add('hidden');
+  }catch(err){
+    errorMsg.textContent = 'CAMERA ACCESS DENIED OR UNAVAILABLE — ' + (err.message || 'check permissions and try again');
+    errorMsg.style.display = 'block';
+  }
+});
+</script>
+
+</body>
+</html>
