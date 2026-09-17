@@ -233,7 +233,7 @@
 </div>
 
 <div id="alertFlash"></div>
-<div id="alertText">SPIDER-SENSE TINGLING</div>
+<div id="alertText">SUBJECT EXCEEDED 50% THREAT LEVEL: SPIDER SENSE TINGLING</div>
 
 <div id="startScreen">
   <div class="glyph"><span>SS</span></div>
@@ -354,9 +354,9 @@ function scheduleSpiderSense(){
 }
 
 const targetLines = [
-  'THREAT LEVEL: LOW', 'THREAT LEVEL: MINIMAL', 'IDENTITY: UNKNOWN',
-  'NO WEAPON SIGNATURE', 'BIO-SIGNAL: NORMAL', 'STRUCTURE: STABLE',
-  'HEAT SIGNATURE NOMINAL', 'CLEARED — NO ACTION NEEDED'
+  'ZERO THREAT LEVEL DETECTED', '20% THREAT LEVEL DETECTED', 'CANNOT IDENTIFY TARGET',
+  '10% THREAT LEVEL DETECTED', '30% THREAT LEVEL DETECTED', '40% THREAT LEVEL DETECTED',
+  'TARGET IS CLEAR', 'SUBJECT CLEARED: NO ACTION NEEDED'
 ];
 function spawnScanCard(x, y){
   const card = document.createElement('div');
